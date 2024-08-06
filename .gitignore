@@ -23,6 +23,7 @@
 *.hex
 *.map
 *.srec
+*.workspace
 
 #User Specific Files
 *.atsuo
