@@ -1,0 +1,42 @@
+#include <stdint.h>
+#include <stdio.h>
+
+#define DEVICE_ADDRESS 0x01
+
+uint8_t crc8(const uint8_t *data, uint8_t len) {
+    uint8_t crc = 0x00;
+    while (len--) {
+        uint8_t extract = *data++;
+        for (uint8_t tempI = 8; tempI; tempI--) {
+            uint8_t sum = (crc ^ extract) & 0x01;
+            crc >>= 1;
+            if (sum) {
+                crc ^= 0x8C;
+            }
+            extract >>= 1;
+        }
+    }
+    return crc;
+}
+
+void form_packet(uint8_t address, uint16_t voltage, uint8_t *packet) {
+    packet[0] = address;
+    packet[1] = (voltage >> 8) & 0xFF;
+    packet[2] = voltage & 0xFF;
+    packet[3] = crc8(packet, 3);
+}
+
+int main() {
+    uint8_t packet[4];
+    uint16_t voltage = 3000;
+
+    form_packet(DEVICE_ADDRESS, voltage, packet);
+
+    printf("Packet: ");
+    for (int i = 0; i < 4; i++) {
+        printf("0x%02X ", packet[i]);
+    }
+    printf("\n");
+
+    return 0;
+}
