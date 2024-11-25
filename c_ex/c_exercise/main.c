@@ -34,15 +34,11 @@ int16_t previous_error = 0; // Предыдущая ошибка для вычисления производной
 
 uint16_t dt = 1; // Интервал времени в миллисекундах
 
-float Kp = 0.07;//0.07;//0.2;//0.02; // значение пропорционального коэффициента - 0.2
-float Ki = 0.1;//0.02;//0.1; // Интегральный коэффициент 0.1
+float Kp = 0.07; // значение пропорционального коэффициента
+float Ki = 0.027; // Интегральный коэффициент
 float Kd = 10; // Дифференциальный коэффициент
 
-
-//0.2 and 0.1 с перерегулированием
-//message $01$03$E8$D5
-
-
+//message $01$03$E8$D5 - для 1000 мВ
 
 uint8_t crc8(const uint8_t *data, uint8_t len){
 	uint8_t crc = 0x00;
@@ -68,8 +64,7 @@ ISR(USART_RXC_vect){
 		
 		if(received_data[0] == DEVICE_ADDRESS){
 			
-			//if(crc8(received_data, 3) == received_data[3])
-			{
+			if(crc8(received_data, 3) == received_data[3]){
 				led_on = 1;
 				msg_rec = 1;
 				LED1_on();// индикатор успешного приема посылки
@@ -184,33 +179,6 @@ void init_pwm() {
 	TCCR1A |= (1<<COM1A1);
 	TCCR1A &=~ (1<<COM1A0);
 	
-	
-	
-	/*рабочий вариант
-	TCCR1A = (1 <<COM1A1) | (0 << COM1A0) | (1 << WGM11) | (1 << WGM10);
-	TCCR1B = (1 <<CS11);
-	*/
-		
-	/*
-	//PWM Frequency
-	ICR1 = F_CPU / (PWM_FREQ * 2);//2000
-	
-	//prescaler 8
-	TCCR1B |= (1<<CS11);
-	TCCR1B &=~ (1<<CS10);
-	TCCR1B &=~ (1<<CS12);
-	
-	//PWM OC1A
-	TCCR1A |= (1<<COM1A1);
-	TCCR1A &=~ (1<<COM1A0);
-	
-	//Phase and Frequency Correct PWM
-	TCCR1A &=~ (1<<WGM10);
-	TCCR1A |= (1<<WGM11);
-	TCCR1B |= (1<<WGM12);
-	TCCR1B |= (1<<WGM13);
-	*/
-		
 	//Low level signal PB1
 	PORTB &=~ (1<<1);
 	
@@ -243,6 +211,7 @@ int main(void) {
 			if(setpoint > current_value){
 				error = setpoint - current_value;
 				integral += error * dt;
+				//предотвращение переполнения
 				if (integral > integral_max) {
 					integral = integral_max;
 				} 
@@ -256,6 +225,7 @@ int main(void) {
 			else{
 				error = current_value - setpoint;
 				integral -= error * dt;
+				//предотвращение переполнения
 				if (integral > integral_max) {
 					integral = integral_max;
 				}
@@ -266,10 +236,7 @@ int main(void) {
 				previous_error = error;
 				control_signal = (Kp * error + Ki * integral + Kd * derivative);
 			}
-			
-			// Вычисление ошибки
-			//control_signal += (Kp * error); // Вычисление управляющего воздействия
-			
+						
 			// Ограничение управляющего сигнала в пределах допустимых значений
 			if (control_signal < 0) 
 			{
@@ -286,17 +253,13 @@ int main(void) {
 			uint16_t upper_bound = setpoint + (setpoint * 0.05);
 			if(msg_rec == 1){
 				if (current_value >= lower_bound && current_value <= upper_bound) {
-					//LED2_on();
 					if(ms_count >= 500){
-						//LED2_off();
 						PORTB ^= (1 << 2);
 						ms_count = 0;
 					}
 				}
 				else {
-					//LED2_on();
 					if(ms_count >= 100){
-							//LED2_off();
 						PORTB ^= (1 << 2);
 						ms_count = 0;
 					}
